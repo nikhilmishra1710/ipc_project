@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloom Filter Benchmark Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a1a;color:#e2e8f0;min-height:100vh}
+.bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,#0a0a1a,#0a1a2a 50%,#1a1a3a)}
+.bg::before{content:'';position:absolute;width:500px;height:500px;background:radial-gradient(circle,rgba(56,189,248,0.07),transparent 70%);top:-150px;right:-80px;border-radius:50%}
+.container{max-width:1200px;margin:0 auto;padding:36px 24px}
+h1{font-size:2.5rem;font-weight:800;text-align:center;background:linear-gradient(135deg,#38bdf8,#818cf8,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{text-align:center;color:#94a3b8;margin-bottom:32px}
+.card{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px;margin-bottom:20px;animation:fadeIn .5s ease both}
+.card h2{font-size:1.15rem;font-weight:600;margin-bottom:14px;color:#f1f5f9}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:7px 16px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-size:.82rem;color:#94a3b8;transition:all .3s}
+.tab.active,.tab:hover{background:rgba(56,189,248,0.15);border-color:rgba(56,189,248,0.4);color:#e2e8f0}
+.bar-group{margin-bottom:10px}
+.bar-label{display:flex;justify-content:space-between;margin-bottom:3px;font-size:.82rem}
+.bar-track{background:rgba(255,255,255,0.04);border-radius:6px;height:28px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;font-weight:600;font-size:.75rem;color:#fff;transition:width 1s cubic-bezier(.22,1,.36,1);width:0}
+.badge{background:rgba(255,255,255,0.1);border-radius:8px;padding:1px 7px;font-size:.7rem;font-weight:600;margin-left:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.sc{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;text-align:center;transition:transform .3s}
+.sc:hover{transform:translateY(-2px)}
+.sc .v{font-size:1.6rem;font-weight:800;margin:4px 0}
+.sc .l{font-size:.75rem;color:#94a3b8}
+.correct{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.ccard{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px}
+.ccard h3{font-size:.9rem;font-weight:600;margin-bottom:8px}
+.ccard .row{display:flex;justify-content:space-between;font-size:.82rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.ok{color:#22c55e}.warn{color:#f59e0b}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}.card:nth-child(4){animation-delay:.15s}
+</style></head><body>
+<div class="bg"></div>
+<div class="container">
+<h1>Bloom Filter Benchmark</h1>
+<p class="sub">Parallel construction &mdash; Sequential vs OpenMP vs MPI vs CUDA &mdash; 3 dataset sizes</p>
+<div class="card"><h2>&#9201; Insertion Time</h2><div class="tabs" id="tabs"></div><div id="bars"></div></div>
+<div class="card"><h2>&#128640; Speedup vs Sequential</h2><div id="speedups"></div></div>
+<div class="card"><h2>&#9989; Correctness Verification</h2><div id="correct"></div></div>
+<div class="card"><h2>&#128202; Bloom Filter Properties</h2><div id="props" style="font-size:.85rem;color:#94a3b8"></div></div>
+</div>
+<script src="results.js"></script>
+<script>
+const M=[
+  {k:'seq',n:'Sequential',c:'#ef4444',sk:'1.00'},
+  {k:'o2',n:'OpenMP 2T',c:'#16a34a',sk:'so2'},{k:'o4',n:'OpenMP 4T',c:'#22c55e',sk:'so4'},{k:'o8',n:'OpenMP 8T',c:'#4ade80',sk:'so8'},
+  {k:'m2',n:'MPI 2R',c:'#2563eb',sk:'sm2'},{k:'m4',n:'MPI 4R',c:'#3b82f6',sk:'sm4'},{k:'m8',n:'MPI 8R',c:'#60a5fa',sk:'sm8'},
+  {k:'cuda',n:'CUDA GPU',c:'#a855f7',sk:'sc'}
+];
+const R=typeof RESULTS!=='undefined'?RESULTS:{configs:[
+  {n:1000000,seq:0.14,o2:0.08,o4:0.05,o8:0.03,m2:0.09,m4:0.06,m8:0.05,cuda:0.2,so2:1.75,so4:2.8,so8:4.67,sm2:1.56,sm4:2.33,sm8:2.8,sc:0.7,fp_seq:0.0002,fn_seq:0,bits_seq:4500000,fp_o:"0.0002",fp_m:"0.0002",fp_c:"0.0002",fn_o:0,fn_m:0,fn_c:0}
+]};
+
+function render(ci){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===ci));
+  const c=R.configs[ci];
+  const vals=M.map(m=>({...m,t:c[m.k],s:m.k==='seq'?'1.00':c[m.sk]}));
+  const maxT=Math.max(...vals.map(v=>v.t));
+  let bh='';
+  vals.forEach(v=>{
+    const pct=Math.max((v.t/maxT)*100,3);
+    bh+=`<div class="bar-group"><div class="bar-label"><span>${v.n}</span>`+
+      `<span style="color:#94a3b8;font-size:.78rem">${v.t.toFixed(4)}s <span class="badge" style="color:${v.c}">${parseFloat(v.s).toFixed(2)}x</span></span></div>`+
+      `<div class="bar-track"><div class="bar-fill" style="background:linear-gradient(90deg,${v.c},${v.c}88)" data-w="${pct}"></div></div></div>`;
+  });
+  document.getElementById('bars').innerHTML=bh;
+  setTimeout(()=>document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.w+'%'),50);
+  let sh='<div class="grid">';
+  vals.forEach(v=>{sh+=`<div class="sc"><div class="l">${v.n}</div><div class="v" style="color:${v.c}">${parseFloat(v.s).toFixed(2)}x</div><div class="l">${v.t.toFixed(4)}s</div></div>`;});
+  document.getElementById('speedups').innerHTML=sh+'</div>';
+
+  // Correctness
+  const methods=[{n:'Sequential',fn:c.fn_seq,fp:c.fp_seq},{n:'OpenMP',fn:c.fn_o,fp:c.fp_o},{n:'MPI',fn:c.fn_m,fp:c.fp_m},{n:'CUDA',fn:c.fn_c,fp:c.fp_c}];
+  let ch='<div class="correct">';
+  methods.forEach(m=>{
+    const fnOk=parseInt(m.fn)===0;
+    ch+=`<div class="ccard"><h3>${m.n}</h3>`+
+      `<div class="row"><span>False Negatives</span><span class="${fnOk?'ok':'warn'}">${fnOk?'✓ 0 (correct)':'⚠ '+m.fn+' (BUG!)'}</span></div>`+
+      `<div class="row"><span>FP Rate (empirical)</span><span>${(parseFloat(m.fp)*100).toFixed(4)}%</span></div>`+
+      `<div class="row"><span>FP Rate (theoretical)</span><span>${(calcTheoFP(c.n)*100).toFixed(4)}%</span></div></div>`;
+  });
+  document.getElementById('correct').innerHTML=ch+'</div>';
+
+  // Properties
+  const m=67108864,k=7;
+  document.getElementById('props').innerHTML=
+    `<b>Filter:</b> m=${(m/1048576).toFixed(0)}M bits (${(m/8/1048576).toFixed(0)} MB) &nbsp; k=${k} hash functions &nbsp; n=${(c.n/1000000).toFixed(0)}M URLs<br>`+
+    `<b>Bits set:</b> ${c.bits_seq?.toLocaleString()||'—'} / ${m.toLocaleString()} (${((c.bits_seq||0)/m*100).toFixed(1)}% fill)<br>`+
+    `<b>Theoretical FP:</b> (1 - e<sup>-kn/m</sup>)<sup>k</sup> = ${(calcTheoFP(c.n)*100).toFixed(4)}%`;
+}
+function calcTheoFP(n){const m=67108864,k=7;return Math.pow(1-Math.exp(-k*n/m),k);}
+
+const td=document.getElementById('tabs');
+R.configs.forEach((c,i)=>{const t=document.createElement('div');t.className='tab'+(i===0?' active':'');t.textContent=(c.n/1000000).toFixed(0)+'M URLs';t.onclick=()=>render(i);td.appendChild(t);});
+render(0);
+</script></body></html>

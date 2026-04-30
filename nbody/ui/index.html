@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>N-Body Benchmark Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0a1a;color:#e2e8f0;min-height:100vh}
+.bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,#0a0a1a,#1a103a 50%,#0a1a2a)}
+.bg::before{content:'';position:absolute;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.08),transparent 70%);top:-200px;right:-100px;border-radius:50%}
+.container{max-width:1200px;margin:0 auto;padding:36px 24px}
+h1{font-size:2.5rem;font-weight:800;text-align:center;background:linear-gradient(135deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;letter-spacing:-1px}
+.sub{text-align:center;color:#94a3b8;margin-bottom:32px}
+.card{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px;margin-bottom:20px;animation:fadeIn .5s ease both}
+.card h2{font-size:1.15rem;font-weight:600;margin-bottom:14px;color:#f1f5f9}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:7px 16px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-size:.82rem;color:#94a3b8;transition:all .3s}
+.tab.active,.tab:hover{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:#e2e8f0}
+.bar-group{margin-bottom:10px}
+.bar-label{display:flex;justify-content:space-between;margin-bottom:3px;font-size:.82rem}
+.bar-name{font-weight:500}.bar-val{color:#94a3b8;font-size:.78rem}
+.bar-track{background:rgba(255,255,255,0.04);border-radius:6px;height:28px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;font-weight:600;font-size:.75rem;color:#fff;transition:width 1s cubic-bezier(.22,1,.36,1);width:0}
+.badge{background:rgba(255,255,255,0.1);border-radius:8px;padding:1px 7px;font-size:.7rem;font-weight:600;margin-left:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.sc{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;text-align:center;transition:transform .3s}
+.sc:hover{transform:translateY(-2px)}
+.sc .v{font-size:1.6rem;font-weight:800;margin:4px 0}
+.sc .l{font-size:.75rem;color:#94a3b8}
+canvas{display:block;margin:0 auto;border-radius:10px;background:rgba(0,0,0,0.3)}
+.note{text-align:center;margin-top:8px;color:#64748b;font-size:.72rem}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}.card:nth-child(4){animation-delay:.15s}
+</style></head><body>
+<div class="bg"></div>
+<div class="container">
+<h1>N-Body Gravitational Simulation</h1>
+<p class="sub">Full benchmark matrix &mdash; 3 problem sizes &times; 8 parallel configs</p>
+<div class="card"><h2>&#9201; Execution Time</h2><div class="tabs" id="tabs"></div><div id="bars"></div></div>
+<div class="card"><h2>&#128640; Speedup vs Sequential</h2><div id="speedups"></div></div>
+<div class="card"><h2>&#127756; Live Simulation</h2><canvas id="sim" width="1140" height="280"></canvas><p class="note">200 particles &mdash; gravitational attraction</p></div>
+</div>
+<script src="results.js"></script>
+<script>
+const M=[
+  {k:'seq',n:'Sequential',c:'#ef4444'},
+  {k:'omp2',n:'OpenMP 2T',c:'#16a34a'},{k:'omp4',n:'OpenMP 4T',c:'#22c55e'},{k:'omp8',n:'OpenMP 8T',c:'#4ade80'},
+  {k:'mpi2',n:'MPI 2R',c:'#2563eb'},{k:'mpi4',n:'MPI 4R',c:'#3b82f6'},{k:'mpi8',n:'MPI 8R',c:'#60a5fa'},
+  {k:'cuda',n:'CUDA GPU',c:'#a855f7'}
+];
+const R=typeof RESULTS!=='undefined'?RESULTS:{configs:[
+  {n:10000,seq:0.33,omp2:0.18,omp4:0.1,omp8:0.06,mpi2:0.2,mpi4:0.12,mpi8:0.09,cuda:0.04,s_omp2:1.83,s_omp4:3.3,s_omp8:5.5,s_mpi2:1.65,s_mpi4:2.75,s_mpi8:3.67,s_cuda:8.25},
+  {n:30000,seq:3,omp2:1.6,omp4:0.85,omp8:0.5,mpi2:1.7,mpi4:1,mpi8:0.7,cuda:0.12,s_omp2:1.88,s_omp4:3.53,s_omp8:6,s_mpi2:1.76,s_mpi4:3,s_mpi8:4.29,s_cuda:25},
+  {n:50000,seq:14,omp2:7.5,omp4:4,omp8:2.2,mpi2:8,mpi4:4.5,mpi8:3,cuda:0.3,s_omp2:1.87,s_omp4:3.5,s_omp8:6.36,s_mpi2:1.75,s_mpi4:3.11,s_mpi8:4.67,s_cuda:46.67}
+]};
+
+function render(ci){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===ci));
+  const c=R.configs[ci];
+  const vals=M.map(m=>({...m,t:c[m.k],s:m.k==='seq'?1:c['s_'+m.k]}));
+  const maxT=Math.max(...vals.map(v=>v.t));
+
+  let bh='';
+  vals.forEach(v=>{
+    const pct=Math.max((v.t/maxT)*100,3);
+    bh+=`<div class="bar-group"><div class="bar-label"><span class="bar-name">${v.n}</span>`+
+      `<span class="bar-val">${v.t.toFixed(4)}s <span class="badge" style="color:${v.c}">${parseFloat(v.s).toFixed(2)}x</span></span></div>`+
+      `<div class="bar-track"><div class="bar-fill" style="background:linear-gradient(90deg,${v.c},${v.c}88)" data-w="${pct}"></div></div></div>`;
+  });
+  document.getElementById('bars').innerHTML=bh;
+  setTimeout(()=>document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.w+'%'),50);
+
+  let sh='<div class="grid">';
+  vals.forEach(v=>{
+    sh+=`<div class="sc"><div class="l">${v.n}</div><div class="v" style="color:${v.c}">${parseFloat(v.s).toFixed(2)}x</div><div class="l">${v.t.toFixed(4)}s</div></div>`;
+  });
+  document.getElementById('speedups').innerHTML=sh+'</div>';
+}
+const td=document.getElementById('tabs');
+R.configs.forEach((c,i)=>{const t=document.createElement('div');t.className='tab'+(i===0?' active':'');t.textContent='N='+c.n.toLocaleString();t.onclick=()=>render(i);td.appendChild(t);});
+render(0);
+
+const cv=document.getElementById('sim'),cx=cv.getContext('2d'),W=cv.width,H=cv.height;
+let ps=[];for(let i=0;i<200;i++)ps.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,m:1+Math.random()*3,c:M[i%M.length].c});
+!function tick(){cx.fillStyle='rgba(0,0,0,0.12)';cx.fillRect(0,0,W,H);
+for(let i=0;i<ps.length;i++){let fx=0,fy=0;for(let j=0;j<ps.length;j++){if(i===j)continue;let dx=ps[j].x-ps[i].x,dy=ps[j].y-ps[i].y,d2=dx*dx+dy*dy+400,f=ps[j].m/(d2*Math.sqrt(d2));fx+=f*dx;fy+=f*dy;}
+ps[i].vx+=fx*.3;ps[i].vy+=fy*.3;ps[i].vx*=.999;ps[i].vy*=.999;ps[i].x+=ps[i].vx;ps[i].y+=ps[i].vy;
+if(ps[i].x<0||ps[i].x>W)ps[i].vx*=-.8;if(ps[i].y<0||ps[i].y>H)ps[i].vy*=-.8;ps[i].x=Math.max(0,Math.min(W,ps[i].x));ps[i].y=Math.max(0,Math.min(H,ps[i].y));}
+for(let p of ps){cx.beginPath();cx.arc(p.x,p.y,p.m,0,Math.PI*2);cx.fillStyle=p.c;cx.shadowColor=p.c;cx.shadowBlur=6;cx.fill();}cx.shadowBlur=0;requestAnimationFrame(tick);}();
+</script></body></html>

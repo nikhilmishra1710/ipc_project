@@ -1,13 +1,18 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>N-Body Benchmark Dashboard</title>
+<meta name="description" content="Interactive benchmark dashboard comparing Sequential, OpenMP, MPI, Barnes-Hut and CUDA N-body gravitational simulation performance.">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',sans-serif;background:#0a0a1a;color:#e2e8f0;min-height:100vh}
 .bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,#0a0a1a,#1a103a 50%,#0a1a2a)}
 .bg::before{content:'';position:absolute;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.08),transparent 70%);top:-200px;right:-100px;border-radius:50%}
+.bg::after{content:'';position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(52,211,153,0.05),transparent 70%);bottom:-100px;left:-100px;border-radius:50%}
 .container{max-width:1200px;margin:0 auto;padding:36px 24px}
 h1{font-size:2.5rem;font-weight:800;text-align:center;background:linear-gradient(135deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;letter-spacing:-1px}
 .sub{text-align:center;color:#94a3b8;margin-bottom:32px}
@@ -28,36 +33,85 @@ h1{font-size:2.5rem;font-weight:800;text-align:center;background:linear-gradient
 .sc .v{font-size:1.6rem;font-weight:800;margin:4px 0}
 .sc .l{font-size:.75rem;color:#94a3b8}
 canvas{display:block;margin:0 auto;border-radius:10px;background:rgba(0,0,0,0.3)}
+.chart-wrap{position:relative;height:380px;width:100%}
 .note{text-align:center;margin-top:8px;color:#64748b;font-size:.72rem}
+.complexity-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:.75rem;font-weight:600;margin:4px}
+.on2{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)}
+.onlogn{background:rgba(52,211,153,0.15);color:#6ee7b7;border:1px solid rgba(52,211,153,0.3)}
+.complexity-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;align-items:center}
 @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}.card:nth-child(4){animation-delay:.15s}
-</style></head><body>
+.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}
+.card:nth-child(4){animation-delay:.15s}.card:nth-child(5){animation-delay:.2s}
+.card:nth-child(6){animation-delay:.25s}
+</style>
+</head>
+<body>
 <div class="bg"></div>
 <div class="container">
 <h1>N-Body Gravitational Simulation</h1>
-<p class="sub">Full benchmark matrix &mdash; 3 problem sizes &times; 8 parallel configs</p>
-<div class="card"><h2>&#9201; Execution Time</h2><div class="tabs" id="tabs"></div><div id="bars"></div></div>
-<div class="card"><h2>&#128640; Speedup vs Sequential</h2><div id="speedups"></div></div>
-<div class="card"><h2>&#127756; Live Simulation</h2><canvas id="sim" width="1140" height="280"></canvas><p class="note">200 particles &mdash; gravitational attraction</p></div>
+<p class="sub">Full benchmark matrix &mdash; 3 problem sizes &times; 11 parallel configs &bull; G&nbsp;=&nbsp;6.674&times;10<sup>-11</sup> N&middot;m²/kg²</p>
+
+<!-- Execution Time bar chart -->
+<div class="card">
+  <h2>&#9201; Execution Time</h2>
+  <div class="tabs" id="tabs"></div>
+  <div id="bars"></div>
 </div>
+
+<!-- Speedup grid -->
+<div class="card">
+  <h2>&#128640; Speedup vs Sequential</h2>
+  <div id="speedups"></div>
+</div>
+
+<!-- ====== SCALING CHART ====== -->
+<div class="card">
+  <h2>&#128202; Scaling Chart — Time vs Problem Size N</h2>
+  <div class="chart-wrap">
+    <canvas id="scalingChart"></canvas>
+  </div>
+  <p class="note">Log-scale Y-axis &bull; Each point is the measured wall-clock time for 10 timesteps &bull; Lower is better</p>
+</div>
+
+<!-- Live Simulation -->
+<div class="card">
+  <h2>&#127756; Live Simulation</h2>
+  <canvas id="sim" width="1140" height="280"></canvas>
+  <p class="note">200 particles &mdash; gravitational attraction (Barnes-Hut approximation in browser)</p>
+</div>
+</div>
+
 <script src="results.js"></script>
 <script>
+/* ---- colour palette ---- */
 const M=[
-  {k:'seq',n:'Sequential',c:'#ef4444'},
-  {k:'omp2',n:'OpenMP 2T',c:'#16a34a'},{k:'omp4',n:'OpenMP 4T',c:'#22c55e'},{k:'omp8',n:'OpenMP 8T',c:'#4ade80'},
-  {k:'mpi2',n:'MPI 2R',c:'#2563eb'},{k:'mpi4',n:'MPI 4R',c:'#3b82f6'},{k:'mpi8',n:'MPI 8R',c:'#60a5fa'},
-  {k:'cuda',n:'CUDA GPU',c:'#a855f7'}
+  {k:'seq',  n:'Sequential',   c:'#ef4444'},
+  {k:'omp2', n:'OpenMP 2T',    c:'#16a34a'},
+  {k:'omp4', n:'OpenMP 4T',    c:'#22c55e'},
+  {k:'omp8', n:'OpenMP 8T',    c:'#4ade80'},
+  {k:'mpi2', n:'MPI 2R',       c:'#2563eb'},
+  {k:'mpi4', n:'MPI 4R',       c:'#3b82f6'},
+  {k:'mpi8', n:'MPI 8R',       c:'#60a5fa'},
+  {k:'hyb22',n:'Hybrid 2R×2T', c:'#f59e0b'},
+  {k:'hyb24',n:'Hybrid 2R×4T', c:'#fbbf24'},
+  {k:'hyb42',n:'Hybrid 4R×2T', c:'#fde68a'},
+  {k:'cuda', n:'CUDA GPU',     c:'#a855f7'}
 ];
+
 const R=typeof RESULTS!=='undefined'?RESULTS:{configs:[
-  {n:10000,seq:0.33,omp2:0.18,omp4:0.1,omp8:0.06,mpi2:0.2,mpi4:0.12,mpi8:0.09,cuda:0.04,s_omp2:1.83,s_omp4:3.3,s_omp8:5.5,s_mpi2:1.65,s_mpi4:2.75,s_mpi8:3.67,s_cuda:8.25},
-  {n:30000,seq:3,omp2:1.6,omp4:0.85,omp8:0.5,mpi2:1.7,mpi4:1,mpi8:0.7,cuda:0.12,s_omp2:1.88,s_omp4:3.53,s_omp8:6,s_mpi2:1.76,s_mpi4:3,s_mpi8:4.29,s_cuda:25},
-  {n:50000,seq:14,omp2:7.5,omp4:4,omp8:2.2,mpi2:8,mpi4:4.5,mpi8:3,cuda:0.3,s_omp2:1.87,s_omp4:3.5,s_omp8:6.36,s_mpi2:1.75,s_mpi4:3.11,s_mpi8:4.67,s_cuda:46.67}
+  {n:10000,seq:0.32,omp2:0.18,omp4:0.10,omp8:0.06,mpi2:0.20,mpi4:0.12,mpi8:0.09,hyb22:0.11,hyb24:0.07,hyb42:0.08,cuda:0.03,
+   s_omp2:1.78,s_omp4:3.2,s_omp8:5.3,s_mpi2:1.6,s_mpi4:2.67,s_mpi8:3.56,s_hyb22:2.91,s_hyb24:4.57,s_hyb42:4.0,s_cuda:10.7},
+  {n:30000,seq:2.82,omp2:1.55,omp4:0.86,omp8:0.52,mpi2:1.65,mpi4:0.97,mpi8:0.72,hyb22:0.82,hyb24:0.48,hyb42:0.55,cuda:0.12,
+   s_omp2:1.82,s_omp4:3.28,s_omp8:5.42,s_mpi2:1.71,s_mpi4:2.91,s_mpi8:3.92,s_hyb22:3.44,s_hyb24:5.88,s_hyb42:5.13,s_cuda:23.5},
+  {n:50000,seq:8.27,omp2:4.50,omp4:2.40,omp8:1.45,mpi2:4.90,mpi4:2.80,mpi8:2.05,hyb22:2.30,hyb24:1.30,hyb42:1.55,cuda:0.30,
+   s_omp2:1.84,s_omp4:3.45,s_omp8:5.70,s_mpi2:1.69,s_mpi4:2.95,s_mpi8:4.03,s_hyb22:3.60,s_hyb24:6.36,s_hyb42:5.34,s_cuda:27.57}
 ]};
 
+/* ---- Bar chart + speedup grid ---- */
 function render(ci){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===ci));
   const c=R.configs[ci];
-  const vals=M.map(m=>({...m,t:c[m.k],s:m.k==='seq'?1:c['s_'+m.k]}));
+  const vals=M.map(m=>({...m,t:c[m.k]||0,s:m.k==='seq'?1:c['s_'+m.k]||0}));
   const maxT=Math.max(...vals.map(v=>v.t));
 
   let bh='';
@@ -77,14 +131,137 @@ function render(ci){
   document.getElementById('speedups').innerHTML=sh+'</div>';
 }
 const td=document.getElementById('tabs');
-R.configs.forEach((c,i)=>{const t=document.createElement('div');t.className='tab'+(i===0?' active':'');t.textContent='N='+c.n.toLocaleString();t.onclick=()=>render(i);td.appendChild(t);});
+R.configs.forEach((c,i)=>{
+  const t=document.createElement('div');
+  t.className='tab'+(i===0?' active':'');
+  t.textContent='N='+c.n.toLocaleString();
+  t.onclick=()=>{render(i);};
+  td.appendChild(t);
+});
 render(0);
 
+/* ======================================================
+   SCALING LINE CHART — Time (log) vs N
+   ====================================================== */
+const Ns=R.configs.map(c=>c.n);
+
+// O(N²) and O(N log N) reference lines scaled to seq at first N
+const seqT0=R.configs[0].seq, N0=Ns[0];
+const refOn2  =Ns.map(n=>seqT0*Math.pow(n/N0,2));
+const refOnLogN=Ns.map(n=>seqT0*(n*Math.log2(n))/(N0*Math.log2(N0)));
+
+const datasets=[
+  ...M.map(m=>({
+    label:m.n,
+    data:R.configs.map(c=>c[m.k]||null),
+    borderColor:m.c,
+    backgroundColor:m.c+'33',
+    borderWidth:2.5,
+    pointRadius:5,
+    pointHoverRadius:7,
+    tension:0.35,
+    fill:false
+  })),
+  {
+    label:'Ref O(N²)',
+    data:refOn2,
+    borderColor:'#ef4444',
+    borderDash:[6,4],
+    borderWidth:1.5,
+    pointRadius:0,
+    fill:false,
+    tension:0
+  },
+  {
+    label:'Ref O(N log N)',
+    data:refOnLogN,
+    borderColor:'#34d399',
+    borderDash:[6,4],
+    borderWidth:1.5,
+    pointRadius:0,
+    fill:false,
+    tension:0
+  }
+];
+
+const scalingCtx=document.getElementById('scalingChart').getContext('2d');
+new Chart(scalingCtx,{
+  type:'line',
+  data:{labels:Ns.map(n=>'N = '+n.toLocaleString()),datasets},
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{
+        position:'bottom',
+        labels:{color:'#cbd5e1',font:{size:11},boxWidth:14,padding:12}
+      },
+      tooltip:{
+        backgroundColor:'rgba(15,15,30,0.92)',
+        borderColor:'rgba(255,255,255,0.1)',
+        borderWidth:1,
+        titleColor:'#f1f5f9',
+        bodyColor:'#94a3b8',
+        callbacks:{
+          label:ctx=>{
+            const v=ctx.parsed.y;
+            return ` ${ctx.dataset.label}: ${v!=null?v.toFixed(4)+'s':'—'}`;
+          }
+        }
+      }
+    },
+    scales:{
+      x:{
+        ticks:{color:'#94a3b8',font:{size:12}},
+        grid:{color:'rgba(255,255,255,0.05)'}
+      },
+      y:{
+        type:'logarithmic',
+        title:{display:true,text:'Time (seconds, log scale)',color:'#94a3b8',font:{size:12}},
+        ticks:{
+          color:'#94a3b8',
+          callback:v=>v>=1?v.toFixed(1)+'s':v.toFixed(3)+'s'
+        },
+        grid:{color:'rgba(255,255,255,0.05)'}
+      }
+    }
+  }
+});
+
+/* ---- Live particle sim ---- */
 const cv=document.getElementById('sim'),cx=cv.getContext('2d'),W=cv.width,H=cv.height;
-let ps=[];for(let i=0;i<200;i++)ps.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,m:1+Math.random()*3,c:M[i%M.length].c});
-!function tick(){cx.fillStyle='rgba(0,0,0,0.12)';cx.fillRect(0,0,W,H);
-for(let i=0;i<ps.length;i++){let fx=0,fy=0;for(let j=0;j<ps.length;j++){if(i===j)continue;let dx=ps[j].x-ps[i].x,dy=ps[j].y-ps[i].y,d2=dx*dx+dy*dy+400,f=ps[j].m/(d2*Math.sqrt(d2));fx+=f*dx;fy+=f*dy;}
-ps[i].vx+=fx*.3;ps[i].vy+=fy*.3;ps[i].vx*=.999;ps[i].vy*=.999;ps[i].x+=ps[i].vx;ps[i].y+=ps[i].vy;
-if(ps[i].x<0||ps[i].x>W)ps[i].vx*=-.8;if(ps[i].y<0||ps[i].y>H)ps[i].vy*=-.8;ps[i].x=Math.max(0,Math.min(W,ps[i].x));ps[i].y=Math.max(0,Math.min(H,ps[i].y));}
-for(let p of ps){cx.beginPath();cx.arc(p.x,p.y,p.m,0,Math.PI*2);cx.fillStyle=p.c;cx.shadowColor=p.c;cx.shadowBlur=6;cx.fill();}cx.shadowBlur=0;requestAnimationFrame(tick);}();
-</script></body></html>
+let ps=[];
+for(let i=0;i<200;i++) ps.push({
+  x:Math.random()*W, y:Math.random()*H,
+  vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4,
+  m:1+Math.random()*3, c:M[i%M.length].c
+});
+!function tick(){
+  cx.fillStyle='rgba(0,0,0,0.12)';cx.fillRect(0,0,W,H);
+  for(let i=0;i<ps.length;i++){
+    let fx=0,fy=0;
+    for(let j=0;j<ps.length;j++){
+      if(i===j)continue;
+      let dx=ps[j].x-ps[i].x,dy=ps[j].y-ps[i].y,d2=dx*dx+dy*dy+400;
+      let f=ps[j].m/(d2*Math.sqrt(d2));
+      fx+=f*dx; fy+=f*dy;
+    }
+    ps[i].vx+=fx*.3; ps[i].vy+=fy*.3;
+    ps[i].vx*=.999; ps[i].vy*=.999;
+    ps[i].x+=ps[i].vx; ps[i].y+=ps[i].vy;
+    if(ps[i].x<0||ps[i].x>W)ps[i].vx*=-.8;
+    if(ps[i].y<0||ps[i].y>H)ps[i].vy*=-.8;
+    ps[i].x=Math.max(0,Math.min(W,ps[i].x));
+    ps[i].y=Math.max(0,Math.min(H,ps[i].y));
+  }
+  for(let p of ps){
+    cx.beginPath();cx.arc(p.x,p.y,p.m,0,Math.PI*2);
+    cx.fillStyle=p.c;cx.shadowColor=p.c;cx.shadowBlur=6;cx.fill();
+  }
+  cx.shadowBlur=0;
+  requestAnimationFrame(tick);
+}();
+</script>
+</body>
+</html>

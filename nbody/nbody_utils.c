@@ -1,22 +1,13 @@
 #include "nbody.h"
 
-/* -----------------------------------------------------------------------
- * Galaxy disk initialisation (two-pass).
- *
- * Pass 1 — assign positions (uniform-area disk, thin Gaussian z) and masses.
- * Pass 2 — assign Keplerian circular velocities from enclosed-mass model.
- * ----------------------------------------------------------------------- */
 void particles_init(float* x, float* y, float* z, float* vx, float* vy, float* vz, float* m, int n, unsigned seed) {
     srand(seed);
     float total_mass = 0.0f;
 
-    /* Pass 1 — positions & masses */
     for (int i = 0; i < n; i++) {
-        /* Uniform disk area: r = R * sqrt(u) */
         float r = GALAXY_R * sqrtf((float)rand() / RAND_MAX);
         float theta = 2.0f * 3.14159265f * (float)rand() / RAND_MAX;
 
-        /* Thin disk: z ~ Gaussian(0, 0.5) via Box-Muller */
         float u1 = ((float)rand() + 1.0f) / (RAND_MAX + 2.0f);
         float u2 = (float)rand() / RAND_MAX;
         float zg = 0.5f * sqrtf(-2.0f * logf(u1)) * cosf(2.0f * 3.14159265f * u2);
@@ -28,15 +19,13 @@ void particles_init(float* x, float* y, float* z, float* vx, float* vy, float* v
         total_mass += m[i];
     }
 
-    /* Pass 2 — Keplerian circular velocities */
     for (int i = 0; i < n; i++) {
         float r = sqrtf(x[i] * x[i] + y[i] * y[i]);
         float theta = atan2f(y[i], x[i]);
-        /* Enclosed mass for uniform disk: M_enc = M_total*(r/R)^2 */
         float frac = r / GALAXY_R;
         float M_enc = total_mass * frac * frac;
         float v_c = (r > 0.1f) ? sqrtf(G * M_enc / r) : 0.0f;
-        vx[i] = -v_c * sinf(theta); /* tangential — perpendicular to r */
+        vx[i] = -v_c * sinf(theta);
         vy[i] = v_c * cosf(theta);
         vz[i] = 0.0f;
     }

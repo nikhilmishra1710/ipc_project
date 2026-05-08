@@ -13,12 +13,8 @@
 #define EPS2 0.01f
 #define TILE_SIZE 256
 
-/* Gravitational constant — SI value (N·m²/kg²).
-   Particle masses are in kg, positions in metres.
-   Scale masses/positions in particles_init if you want different units. */
 #define G 6.674e-11f
 
-/* Barnes-Hut opening-angle criterion */
 #define BH_THETA 0.5f
 
 #ifdef __cplusplus

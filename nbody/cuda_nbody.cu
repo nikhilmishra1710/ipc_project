@@ -1,12 +1,3 @@
-/*
- * cuda_nbody.cu — CUDA N-Body, Velocity Verlet integrator
- *
- * Tile size is a RUNTIME parameter (argv[2], default 256), implemented via
- * dynamic shared memory — analogous to OMP_NUM_THREADS for OpenMP.
- *
- * Usage:  ./build/cuda_nbody <N> [tile_size]
- * E.g.:   ./build/cuda_nbody 30000 128
- */
 #include "nbody.h"
 
 #ifndef NO_CUDA
@@ -20,10 +11,7 @@
             }                                                                                                                                        \
         } while (0)
 
-/* -----------------------------------------------------------------------
- * forces_kernel — computes acceleration for each particle i.
- * Uses dynamic shared memory: 4 arrays of tile_sz floats each.
- * ----------------------------------------------------------------------- */
+
 __global__ void forces_kernel(const float* x, const float* y, const float* z, const float* mass, float* ax, float* ay, float* az, int n,
                               int tile_sz) {
     extern __shared__ float smem[];
@@ -223,8 +211,8 @@ int main(int argc, char** argv) {
     int n = argc > 1 ? atoi(argv[1]) : N_PARTICLES;
     int tile_sz = argc > 2 ? atoi(argv[2]) : 256; /* runtime tile size — like OMP_NUM_THREADS */
 
-    float *x = (float*)malloc(n * 4), *y = (float*)malloc(n * 4), *z = (float*)malloc(n * 4);
-    float *vx = (float*)malloc(n * 4), *vy = (float*)malloc(n * 4), *vz = (float*)malloc(n * 4), *m = (float*)malloc(n * 4);
+    float *x = (float*)malloc(sizeof(float) * n), *y = (float*)malloc(sizeof(float) * n), *z = (float*)malloc(sizeof(float) * n);
+    float *vx = (float*)malloc(sizeof(float) * n), *vy = (float*)malloc(sizeof(float) * n), *vz = (float*)malloc(sizeof(float) * n), *m = (float*)malloc(sizeof(float) * n);
     particles_init(x, y, z, vx, vy, vz, m, n, 42);
     printf("CUDA N-Body [%s]: N=%d T=%d tile=%d\n", bk, n, TIMESTEPS, tile_sz);
     double t0 = now_sec();

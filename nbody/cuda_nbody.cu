@@ -169,40 +169,7 @@ static const char* bk = "CUDA GPU (dynamic tiled shared mem, Velocity Verlet)";
 #else /* CPU fallback */
 
 static void run_cuda(float* x, float* y, float* z, float* vx, float* vy, float* vz, float* m, int n, int tile_sz) {
-    (void)tile_sz;
-    float *ax = (float*)calloc(n, 4), *ay = (float*)calloc(n, 4), *az = (float*)calloc(n, 4);
-    float *nax = (float*)calloc(n, 4), *nay = (float*)calloc(n, 4), *naz = (float*)calloc(n, 4);
-    compute_forces_seq(x, y, z, m, n, ax, ay, az);
-    for (int t = 0; t < TIMESTEPS; t++) {
-        float dt2 = 0.5f * DT * DT;
-        for (int i = 0; i < n; i++) {
-            x[i] += vx[i] * DT + ax[i] * dt2;
-            y[i] += vy[i] * DT + ay[i] * dt2;
-            z[i] += vz[i] * DT + az[i] * dt2;
-        }
-        compute_forces_seq(x, y, z, m, n, nax, nay, naz);
-        for (int i = 0; i < n; i++) {
-            vx[i] += 0.5f * (ax[i] + nax[i]) * DT;
-            vy[i] += 0.5f * (ay[i] + nay[i]) * DT;
-            vz[i] += 0.5f * (az[i] + naz[i]) * DT;
-        }
-        float* tmp;
-        tmp = ax;
-        ax = nax;
-        nax = tmp;
-        tmp = ay;
-        ay = nay;
-        nay = tmp;
-        tmp = az;
-        az = naz;
-        naz = tmp;
-    }
-    free(ax);
-    free(ay);
-    free(az);
-    free(nax);
-    free(nay);
-    free(naz);
+    printf("No GPU found");
 }
 static const char* bk = "CPU fallback (Velocity Verlet)";
 #endif

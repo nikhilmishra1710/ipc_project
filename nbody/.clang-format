@@ -1,0 +1,49 @@
+# We base this largely on the LLVM style, but override a few key things
+BasedOnStyle: LLVM
+
+# Language to apply these rules to
+Language: Cpp
+
+# Basic Formatting
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 150
+
+# Pointer and Reference Alignment (e.g., int* x instead of int *x)
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Braces and Control Flow
+# Attach braces to the statement (e.g., if (x) { )
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Empty
+
+# Switch Statements
+# Indent 'case' labels inside the 'switch' block
+IndentCaseLabels: true
+
+# Namespaces
+# Don't indent code inside namespaces
+NamespaceIndentation: None
+FixNamespaceComments: true
+
+# Classes and Structs
+AccessModifierOffset: -4
+AllowShortEnumsOnASingleLine: true
+
+# Function declarations and definitions
+BinPackArguments: true
+BinPackParameters: true
+AlignAfterOpenBracket: Align
+AlwaysBreakAfterReturnType: None
+
+# Includes
+# Sort includes alphabetically and group them
+SortIncludes: true
+
+# Preprocessor directives
+IndentPPDirectives: AfterHash

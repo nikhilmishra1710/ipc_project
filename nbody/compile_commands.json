@@ -1,0 +1,32 @@
+[
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -I/usr/include -c mpi_nbody.c",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/mpi_nbody.c"
+  },
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang -I/usr/lib/x86_64-linux-gnu/openmpi/include -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -I/usr/include -c hybrid_nbody.c",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/hybrid_nbody.c"
+  },
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang -I/usr/include -c omp_nbody.c",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/omp_nbody.c"
+  },
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang -I/usr/include -c seq_nbody.c",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/seq_nbody.c"
+  },
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang -I/usr/include -c nbody_utils.c",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/nbody_utils.c"
+  },
+  {
+    "directory": "/home/nikhil/dev/ipc/ipc_project/nbody",
+    "command": "clang++ -x c++ -DNO_CUDA -I/usr/include -c cuda_nbody.cu",
+    "file": "/home/nikhil/dev/ipc/ipc_project/nbody/cuda_nbody.cu"
+  }
+]

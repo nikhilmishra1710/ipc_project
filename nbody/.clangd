@@ -1,0 +1,17 @@
+# Windows clangd accesses WSL files via UNC paths (//wsl.localhost/...)
+# All include paths must use UNC format so Windows clang can resolve them.
+CompileFlags:
+  Add:
+    - '-I/usr/lib/x86_64-linux-gnu/openmpi/include'
+    - '-I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi'
+    - '-I/usr/include'
+
+---
+# .cu files: parse as plain C++ with NO_CUDA so Windows clangd
+# skips the <<<>>> kernel-launch syntax and CUDA install check entirely.
+If:
+  PathMatch: .*/.cu
+CompileFlags:
+  Add:
+    - '-x'
+    - 'c++'
